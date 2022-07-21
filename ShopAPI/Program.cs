@@ -4,6 +4,11 @@ using ShopAPI.Data;
 using AutoMapper;
 using ShopAPI.Dtos;
 using ShopAPI.Models;
+using FluentValidation;
+using ShopAPI.Validators;
+using System.ComponentModel.DataAnnotations;
+using FluentValidation.AspNetCore;
+using FluentValidation.Results;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +23,10 @@ builder.Services.AddDbContext<ShopDbContext>(opt => opt.UseSqlServer(sqlConBuild
 builder.Services.AddScoped<IShopRepo, SqlShopRepo>();
 
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+
+builder.Services.AddScoped<IValidator<CustomerCreateDto>, CustomerCreateDtoValidator>();
+builder.Services.AddScoped<IValidator<ProductCreateDto>, ProductCreateDtoValidator>();
+builder.Services.AddScoped<IValidator<OrderCreateDto>, OrderCreateDtoValidator>();
 
 var app = builder.Build();
 
@@ -41,7 +50,13 @@ app.MapGet("api/products", async (IShopRepo repo) => {
     return Results.Ok(await repo.GetAllProductsAsync());
 });
 
-app.MapPost("api/products", async (IShopRepo repo, IMapper mapper, ProductCreateDto productCreateDto) => {
+app.MapPost("api/products", async (IShopRepo repo, IMapper mapper, ProductCreateDto productCreateDto, IValidator<ProductCreateDto> validator) => {
+    var result = await validator.ValidateAsync(productCreateDto);
+    
+    if(!result.IsValid){
+      return Results.BadRequest(result.Errors);
+    }
+    
     var product = mapper.Map<Product>(productCreateDto);
 
     await repo.CreateProductAsync(product);
@@ -50,7 +65,13 @@ app.MapPost("api/products", async (IShopRepo repo, IMapper mapper, ProductCreate
     return Results.Created($"api/products/{product.Id}", product);
 });
 
-app.MapPost("api/customers", async (IShopRepo repo, IMapper mapper, CustomerCreateDto customerCreateDto) => {
+app.MapPost("api/customers", async (IShopRepo repo, IMapper mapper, CustomerCreateDto customerCreateDto, IValidator<CustomerCreateDto> validator) => {
+    var result = await validator.ValidateAsync(customerCreateDto);
+    
+    if(!result.IsValid){
+      return Results.BadRequest(result.Errors);
+    }
+
     var customer = mapper.Map<Customer>(customerCreateDto);
 
     await repo.CreateCustomerAsync(customer);
@@ -59,7 +80,13 @@ app.MapPost("api/customers", async (IShopRepo repo, IMapper mapper, CustomerCrea
     return Results.Created($"api/customers/{customer.Id}", customer);
 });
 
-app.MapPost("api/orders", async (IShopRepo repo, IMapper mapper, OrderCreateDto orderCreateDto) => {
+app.MapPost("api/orders", async (IShopRepo repo, IMapper mapper, OrderCreateDto orderCreateDto, IValidator<OrderCreateDto> validator) => {
+    var result = await validator.ValidateAsync(orderCreateDto);
+    
+    if(!result.IsValid){
+      return Results.BadRequest(result.Errors);
+    }
+    
     var order = mapper.Map<Order>(orderCreateDto);
 
     await repo.CreateOrderAsync(order);
